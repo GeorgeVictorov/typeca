@@ -5,6 +5,9 @@
 It ensures that arguments passed to functions and the function's return value match their specified types, 
 raising a TypeError if any type mismatch is found.
 
+## Supported Python Versions
+* Python 3.9 and later.
+
 ## Features
 * **Positional and Keyword Argument Checks**.
 * **Flexible Enforcement**: Skips type checking for arguments without annotations, providing flexibility where needed.
