@@ -230,3 +230,10 @@ class TestEnforceTypes(unittest.TestCase):
             return list(args) * 2
 
         self.assertEqual(process_array(1, 2, 3), [1, 2, 3, 1, 2, 3])
+
+    def test_skipped_annot(self):
+        @type_enforcer()
+        def process_data(a, b: float, c: int) -> float:
+            return a * b * c
+
+        self.assertEqual(process_data(1, 2.0, 3), 6.0)
