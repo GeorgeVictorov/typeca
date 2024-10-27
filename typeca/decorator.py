@@ -119,6 +119,7 @@ def type_enforcer(enable: bool = True):
             check_args_types(func, hints, sig, args, kwargs)
             result = func(*args, **kwargs)
             check_return_types(result, return_type)
+
             return result
 
         return wrapper

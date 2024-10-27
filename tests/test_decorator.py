@@ -1,6 +1,6 @@
 import unittest
-
-from src.decorator import type_enforcer
+from typing import List, Dict, Tuple
+from typeca import type_enforcer
 
 
 class TestEnforceTypes(unittest.TestCase):
@@ -103,6 +103,7 @@ class TestEnforceTypes(unittest.TestCase):
         @type_enforcer()
         def process_data(data: tuple[int]) -> tuple[int, int]:
             return data * 2
+
         self.assertEqual(process_data((1,)), (1, 1))
 
     def test_empty_list(self):
@@ -131,7 +132,7 @@ class TestEnforceTypes(unittest.TestCase):
         def add(a: int, b: int) -> int:
             return a + b
 
-        self.assertEqual(add(3, 4), 7)  # No TypeError raised
+        self.assertEqual(add(3, 4), 7)
 
     def test_invalid_return_type(self):
         @type_enforcer()
@@ -191,3 +192,37 @@ class TestEnforceTypes(unittest.TestCase):
             ]),
             [1, 2, 3, 4]
         )
+
+    def test_prev_annot_style(self):
+        @type_enforcer()
+        def process_data(data: Tuple[int]) -> Tuple[int, int]:
+            return data * 2
+        self.assertEqual(process_data((1,)), (1, 1))
+
+    def test_prev_annot_style_incorrect_type(self):
+        @type_enforcer()
+        def process_data(data: Tuple[int]) -> Tuple[int, int]:
+            return data * 2
+        with self.assertRaises(TypeError) as context:
+            process_data(1)
+
+    def test_prev_annot_correct_list_type(self):
+        @type_enforcer()
+        def double_values(values: List[int]) -> List[int]:
+            return [v * 2 for v in values]
+
+        self.assertEqual(double_values([1, 2, 3]), [2, 4, 6])
+
+    def test_prev_annot_incorrect_return_dict_type(self):
+        @type_enforcer()
+        def get_str_int_map() -> Dict[str, int]:
+            return {"a": "1", "b": "2"}
+
+        with self.assertRaises(TypeError) as context:
+            get_str_int_map()
+
+    def test_with_many_args(self):
+        @type_enforcer()
+        def process_array(*args) -> list[int]:
+            return list(args) * 2
+        self.assertEqual(process_array(1, 2, 3), [1, 2, 3, 1, 2, 3])
