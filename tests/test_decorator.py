@@ -1,5 +1,6 @@
 import unittest
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
+
 from typeca import type_enforcer
 
 
@@ -197,13 +198,15 @@ class TestEnforceTypes(unittest.TestCase):
         @type_enforcer()
         def process_data(data: Tuple[int]) -> Tuple[int, int]:
             return data * 2
+
         self.assertEqual(process_data((1,)), (1, 1))
 
     def test_prev_annot_style_incorrect_type(self):
         @type_enforcer()
         def process_data(data: Tuple[int]) -> Tuple[int, int]:
             return data * 2
-        with self.assertRaises(TypeError) as context:
+
+        with self.assertRaises(TypeError):
             process_data(1)
 
     def test_prev_annot_correct_list_type(self):
@@ -218,11 +221,12 @@ class TestEnforceTypes(unittest.TestCase):
         def get_str_int_map() -> Dict[str, int]:
             return {"a": "1", "b": "2"}
 
-        with self.assertRaises(TypeError) as context:
+        with self.assertRaises(TypeError):
             get_str_int_map()
 
     def test_with_many_args(self):
         @type_enforcer()
         def process_array(*args) -> list[int]:
             return list(args) * 2
+
         self.assertEqual(process_array(1, 2, 3), [1, 2, 3, 1, 2, 3])
