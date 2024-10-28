@@ -35,6 +35,10 @@ during development and testing phases.
 
 ## Installation
 
+```bash
+pip install typeca
+```
+
 ## Usage
 Use **@type_enforcer** to enforce type checks on your functions:
 
