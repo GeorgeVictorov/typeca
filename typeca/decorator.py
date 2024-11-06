@@ -48,6 +48,14 @@ def check_type(value, expected_type):
         return isinstance(value, tuple) and len(value) == len(item_types) and all(
             check_type(item, item_type) for item, item_type in zip(value, item_types))
 
+    elif origin_type is set:
+        item_type = get_args(expected_type)[0]
+        return isinstance(value, set) and all(check_type(item, item_type) for item in value)
+
+    elif origin_type is frozenset:
+        item_type = get_args(expected_type)[0]
+        return isinstance(value, frozenset) and all(check_type(item, item_type) for item in value)
+
     return False
 
 

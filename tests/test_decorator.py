@@ -237,3 +237,119 @@ class TestEnforceTypes(unittest.TestCase):
             return a * b * c
 
         self.assertEqual(process_data(1, 2.0, 3), 6.0)
+
+    def test_set_type(self):
+        @type_enforcer()
+        def unique_values(values: set[int]) -> set[int]:
+            return set(values)
+
+        self.assertEqual(unique_values({1, 2, 3, 3}), {1, 2, 3})
+
+    def test_frozenset_type(self):
+        @type_enforcer()
+        def fixed_values() -> frozenset[int]:
+            return frozenset({1, 2, 3})
+
+        self.assertEqual(fixed_values(), frozenset({1, 2, 3}))
+
+    def test_correct_set_type(self):
+        @type_enforcer()
+        def unique_values(values: set[int]) -> set[int]:
+            return set(values)
+
+        self.assertEqual(unique_values({1, 2, 3}), {1, 2, 3})
+
+    def test_incorrect_set_type(self):
+        @type_enforcer()
+        def unique_values(values: set[int]) -> set[int]:
+            return set(values)
+
+        with self.assertRaises(TypeError) as context:
+            unique_values({1, "2", 3})
+        self.assertIn("Argument 'values' must be of type set[int]", str(context.exception))
+
+    def test_set_empty(self):
+        @type_enforcer()
+        def unique_values(values: set[int]) -> set[int]:
+            return set(values)
+
+        self.assertEqual(unique_values(set()), set())
+
+    def test_set_with_non_int_elements(self):
+        @type_enforcer()
+        def unique_values(values: set[int]) -> set[int]:
+            return set(values)
+
+        with self.assertRaises(TypeError) as context:
+            unique_values({1, 2, "3"})
+        self.assertIn("Argument 'values' must be of type set[int]", str(context.exception))
+
+    def test_correct_frozenset_type(self):
+        @type_enforcer()
+        def fixed_values() -> frozenset[int]:
+            return frozenset({1, 2, 3})
+
+        self.assertEqual(fixed_values(), frozenset({1, 2, 3}))
+
+    def test_incorrect_frozenset_type(self):
+        @type_enforcer()
+        def fixed_values() -> frozenset[int]:
+            return frozenset({1, 2, 3})
+
+        with self.assertRaises(TypeError) as context:
+            fixed_values({"a", 2, 3})
+
+    def test_frozenset_empty(self):
+        @type_enforcer()
+        def fixed_values() -> frozenset[int]:
+            return frozenset()
+
+        self.assertEqual(fixed_values(), frozenset())
+
+    def test_frozenset_with_non_int_elements(self):
+        @type_enforcer()
+        def fixed_values() -> frozenset[int]:
+            return frozenset({1, 2, "3"})
+
+        with self.assertRaises(TypeError) as context:
+            fixed_values()
+        self.assertIn("Return value must be of type frozenset[int]", str(context.exception))
+
+    def test_set_of_frozenset_elements(self):
+        @type_enforcer()
+        def set_of_frozensets(values: set[frozenset[int]]) -> set[frozenset[int]]:
+            return {frozenset(val) for val in values}
+
+        self.assertEqual(set_of_frozensets({frozenset([1, 2]), frozenset([3, 4])}),
+                         {frozenset([1, 2]), frozenset([3, 4])})
+
+    def test_frozenset_of_sets(self):
+        @type_enforcer()
+        def frozenset_of_sets(values: frozenset[frozenset[int]]) -> frozenset[frozenset[int]]:
+            return frozenset(values)
+
+        self.assertEqual(frozenset_of_sets(frozenset([frozenset([1, 2]), frozenset([3, 4])])),
+                         frozenset([frozenset([1, 2]), frozenset([3, 4])]))
+
+        with self.assertRaises(TypeError) as context:
+            frozenset_of_sets(
+                frozenset([frozenset([1, 2]), {3, 4}]))  # {3, 4} is a set, not a frozenset
+
+    def test_list_with_nested_types(self):
+        @type_enforcer()
+        def process_nested_list(values: list[list[int]]) -> list[list[int]]:
+            return values
+
+        self.assertEqual(process_nested_list([[1, 2], [3, 4]]), [[1, 2], [3, 4]])
+
+        with self.assertRaises(TypeError) as context:
+            process_nested_list([[1, 2], "string"])  # "string" is not a list
+
+    def test_set_with_non_type_compliant_elements(self):
+        @type_enforcer()
+        def process_set(values: set[int]) -> set[int]:
+            return values
+
+        with self.assertRaises(TypeError) as context:
+            process_set({1, 2, "string"})  # "string" is not an int
+        self.assertIn("Argument 'values' must be of type set[int]", str(context.exception))
