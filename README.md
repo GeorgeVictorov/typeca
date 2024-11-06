@@ -23,6 +23,7 @@ during development and testing phases.
 ## Features
 * **Flexible Enforcement**: Skips type checking for arguments without annotations.
 * **Nested Annotation Check**: The decorator supports recursive type checking for nested data structures.
+* **Configurable Cache Size**: Uses a cache to store function signatures, with a configurable maxsize parameter (default is 64).
 * **Enable/Disable Type Checking**: Users can enable or disable type enforcement on a function by using the enable parameter, defaults to True.
 * **Error Handling**: Raises a TypeError if a type mismatch is detected for either function args or the return value.
 
@@ -84,10 +85,24 @@ process_items(['a', 'b', 'c'])  # Raises TypeError
 ### Example 3: Disable Type Enforcement
 
 At any moment you can disable check to improve performance of the function:
+
 ```python
 @type_enforcer(enable=False)
 def process_array(*args) -> list[int]:
     return list(args) * 2
 
 process_array(1, 2, 3) # Works without type enforcement
+```
+
+### Example 4: Custom Cache Size
+
+The type_enforcer decorator will cache up to 128 unique signatures for process_data:
+
+```python
+@type_enforcer(maxsize=128)
+def process_data(x: int, y: int) -> int:
+    return x + y
+
+print(process_data(5, 10))  # Type enforcement applies, returns 15
+print(process_data("5", "10")) 
 ```

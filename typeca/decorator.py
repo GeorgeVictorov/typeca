@@ -3,8 +3,7 @@ from inspect import signature
 from typing import get_args, get_origin
 
 
-@lru_cache(maxsize=64)
-def get_cached_signature_and_hints(func):
+def get_signature_and_hints(func):
     """
     Get type annotations and signature of a func.
 
@@ -92,20 +91,23 @@ def check_return_types(result, return_type):
                         f'but got {type(result).__name__}')
 
 
-def type_enforcer(enable: bool = True):
+def type_enforcer(maxsize: int = 64, enable: bool = True):
     """
-    Decorate a function to enforce type checking.
+    Decorator to enforce type checking on function arguments and return types.
 
     Args:
+        maxsize (int): maximum size of the cache for storing function signatures.
         enable (bool): enable type checking.
 
     Returns:
         Callable: decorated function.
 
     Notes:
+        Maxsize defaults to 64.
         Enable defaults to True.
         If enable is False, the decorator returns the original function unchanged.
     """
+    get_cached_signature_and_hints = lru_cache(maxsize=maxsize)(get_signature_and_hints)
 
     def decorator(func):
         if not enable:
