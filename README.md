@@ -19,7 +19,7 @@ during development and testing phases.
 
 ## Supported Python Versions
 
-* Python 3.9 and later.
+* Python 3.10 and later.
 
 ## Features
 
