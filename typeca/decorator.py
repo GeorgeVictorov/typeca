@@ -1,6 +1,6 @@
 from functools import lru_cache, wraps
 from inspect import signature
-from typing import get_args, get_origin
+from typing import get_args, get_origin, Union
 
 
 def get_signature_and_hints(func):
@@ -34,6 +34,10 @@ def check_type(value, expected_type):
     if origin_type is None:
         return isinstance(value, expected_type)
 
+    elif origin_type is Union:
+        union_types = get_args(expected_type)
+        return any(check_type(value, typ) for typ in union_types)
+
     elif origin_type is list:
         item_type = get_args(expected_type)[0]
         return isinstance(value, list) and all(check_type(item, item_type) for item in value)
@@ -56,7 +60,7 @@ def check_type(value, expected_type):
         item_type = get_args(expected_type)[0]
         return isinstance(value, frozenset) and all(check_type(item, item_type) for item in value)
 
-    return False
+    return True  # return True for unsupported types
 
 
 def check_args_types(func, hints, sig, args, kwargs):

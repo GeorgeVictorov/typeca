@@ -1,5 +1,5 @@
 import unittest
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Union
 
 from typeca import type_enforcer
 
@@ -291,6 +291,13 @@ class TestEnforceTypes(unittest.TestCase):
 
         self.assertEqual(fixed_values(), frozenset({1, 2, 3}))
 
+    def test_correct_frozenset_type_2(self):
+        @type_enforcer()
+        def fixed_values() -> frozenset[int | str]:
+            return frozenset({1, 'a'})
+
+        self.assertEqual(fixed_values(), frozenset({1, 'a'}))
+
     def test_incorrect_frozenset_type(self):
         @type_enforcer()
         def fixed_values() -> frozenset[int]:
@@ -333,7 +340,7 @@ class TestEnforceTypes(unittest.TestCase):
 
         with self.assertRaises(TypeError) as context:
             frozenset_of_sets(
-                frozenset([frozenset([1, 2]), {3, 4}]))  # {3, 4} is a set, not a frozenset
+                frozenset([frozenset([1, 2]), {3, 4}]))
 
     def test_list_with_nested_types(self):
         @type_enforcer()
@@ -343,7 +350,7 @@ class TestEnforceTypes(unittest.TestCase):
         self.assertEqual(process_nested_list([[1, 2], [3, 4]]), [[1, 2], [3, 4]])
 
         with self.assertRaises(TypeError) as context:
-            process_nested_list([[1, 2], "string"])  # "string" is not a list
+            process_nested_list([[1, 2], "string"])
 
     def test_set_with_non_type_compliant_elements(self):
         @type_enforcer()
@@ -353,3 +360,108 @@ class TestEnforceTypes(unittest.TestCase):
         with self.assertRaises(TypeError) as context:
             process_set({1, 2, "string"})  # "string" is not an int
         self.assertIn("Argument 'values' must be of type set[int]", str(context.exception))
+
+    def test_union_type(self):
+        @type_enforcer()
+        def process_union(value: int | str) -> int | str:
+            return value
+
+        self.assertEqual(process_union(10), 10)
+        self.assertEqual(process_union("test"), "test")
+
+    def test_optional_type(self):
+        @type_enforcer()
+        def process_optional(value: int | None) -> int | None:
+            return value
+
+        self.assertEqual(process_optional(10), 10)
+        self.assertIsNone(process_optional(None))
+
+    def test_optional_int_type(self):
+        @type_enforcer()
+        def process_optional(value: int | None) -> int | None:
+            return value
+
+        self.assertEqual(process_optional(10), 10)
+        self.assertIsNone(process_optional(None))
+
+    def test_optional_list_type(self):
+        @type_enforcer()
+        def process_optional_list(value: list[int] | None) -> list[int] | None:
+            return value
+
+        self.assertEqual(process_optional_list([1, 2, 3]), [1, 2, 3])
+        self.assertIsNone(process_optional_list(None))
+
+    def test_union_without_none(self):
+        @type_enforcer()
+        def process_union(value: int | str) -> int | str:
+            return value
+
+        self.assertEqual(process_union(10), 10)
+        self.assertEqual(process_union("text"), "text")
+
+    def test_optional_int(self):
+        @type_enforcer()
+        def process_value(value: Optional[int]) -> Optional[int]:
+            return value
+
+        self.assertEqual(process_value(10), 10)
+        self.assertEqual(process_value(None), None)
+
+        # Invalid case
+        with self.assertRaises(TypeError):
+            process_value("string")
+
+    def test_union_int_or_str(self):
+        @type_enforcer()
+        def process_union(value: Union[int, str]) -> Union[int, str]:
+            return value
+
+        self.assertEqual(process_union(10), 10)
+        self.assertEqual(process_union("hello"), "hello")
+
+        with self.assertRaises(TypeError):
+            process_union(10.5)
+
+    def test_optional_union_int_or_str(self):
+        @type_enforcer()
+        def process_optional_union(value: Optional[Union[int, str]]) -> Optional[Union[int, str]]:
+            return value
+
+        # Valid cases
+        self.assertEqual(process_optional_union(10), 10)
+        self.assertEqual(process_optional_union("text"), "text")
+        self.assertEqual(process_optional_union(None), None)
+
+        # Invalid case
+        with self.assertRaises(TypeError):
+            process_optional_union(10.5)
+
+    def test_optional_dict_with_union_values(self):
+        @type_enforcer()
+        def process_dict(values: Optional[dict[str, Union[int, None]]]) \
+                -> Optional[dict[str, Union[int, None]]]:
+            return values
+
+        self.assertEqual(process_dict({"a": 1, "b": None}), {"a": 1, "b": None})
+        self.assertEqual(process_dict(None), None)
+
+        # Invalid case
+        with self.assertRaises(TypeError):
+            process_dict({"a": 1, "b": "text"})
+
+    def test_optional_tuple_of_optional_elements(self):
+        @type_enforcer()
+        def process_tuple(value: Optional[tuple[Optional[int], Optional[str]]]) \
+                -> Optional[tuple[Optional[int], Optional[str]]]:
+            return value
+
+        # Valid cases
+        self.assertEqual(process_tuple((None, None)), (None, None))
+        self.assertEqual(process_tuple((10, "text")), (10, "text"))
+        self.assertEqual(process_tuple(None), None)
+
+        # Invalid case
+        with self.assertRaises(TypeError):
+            process_tuple((10.5, "text"))
