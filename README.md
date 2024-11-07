@@ -10,33 +10,11 @@ P.S. Anyway, this decorator would negatively affect a function`s performance, so
 during development and testing phases.
 
 ```python
-%timeit - n
-10 - r
-7
-gen_array(1_000_000)
-50.5
-ms ± 1.53
-ms
-per
-loop(mean ± std.dev.of
-7
-runs, 10
-loops
-each)
+%timeit -n 10 -r 7 gen_array(1_000_000)
+48 ms ± 1.36 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
 
-%timeit - n
-10 - r
-7
-gen_array_type_enforced(1_000_000)
-474
-ms ± 14.9
-ms
-per
-loop(mean ± std.dev.of
-7
-runs, 10
-loops
-each)
+%timeit -n 10 -r 7 gen_array_type_enforced(1_000_000)
+424 ms ± 34.2 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
 ```
 
 ## Supported Python Versions
