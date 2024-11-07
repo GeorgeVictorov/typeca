@@ -1,5 +1,5 @@
 import unittest
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from typeca import type_enforcer
 
@@ -308,7 +308,7 @@ class TestEnforceTypes(unittest.TestCase):
         def fixed_values() -> frozenset[int]:
             return frozenset({1, 2, 3})
 
-        with self.assertRaises(TypeError) as context:
+        with self.assertRaises(TypeError):
             fixed_values({"a", 2, 3})
 
     def test_frozenset_empty(self):
@@ -343,7 +343,7 @@ class TestEnforceTypes(unittest.TestCase):
         self.assertEqual(frozenset_of_sets(frozenset([frozenset([1, 2]), frozenset([3, 4])])),
                          frozenset([frozenset([1, 2]), frozenset([3, 4])]))
 
-        with self.assertRaises(TypeError) as context:
+        with self.assertRaises(TypeError):
             frozenset_of_sets(
                 frozenset([frozenset([1, 2]), {3, 4}]))
 
@@ -354,7 +354,7 @@ class TestEnforceTypes(unittest.TestCase):
 
         self.assertEqual(process_nested_list([[1, 2], [3, 4]]), [[1, 2], [3, 4]])
 
-        with self.assertRaises(TypeError) as context:
+        with self.assertRaises(TypeError):
             process_nested_list([[1, 2], "string"])
 
     def test_set_with_non_type_compliant_elements(self):

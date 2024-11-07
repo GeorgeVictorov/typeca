@@ -1,6 +1,6 @@
 from functools import lru_cache, wraps
-from inspect import signature, Signature
-from typing import get_args, get_origin, Union, Any, Type
+from inspect import Signature, signature
+from typing import Any, Type, Union, get_args, get_origin
 
 
 def get_signature_and_hints(func) -> tuple[dict, Signature]:
