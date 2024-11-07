@@ -13,6 +13,11 @@ class TestEnforceTypes(unittest.TestCase):
 
         self.assertEqual(add(3, 4), 7)
 
+    def test_correct_simple_list_type(self):
+        @type_enforcer()
+        def concat(a: list, b: list) -> list:
+            return a + b
+
     def test_correct_list_type(self):
         @type_enforcer()
         def double_values(values: list[int]) -> list[int]:

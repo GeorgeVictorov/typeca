@@ -1,9 +1,9 @@
 from functools import lru_cache, wraps
-from inspect import signature
-from typing import get_args, get_origin, Union
+from inspect import signature, Signature
+from typing import get_args, get_origin, Union, Any, Type
 
 
-def get_signature_and_hints(func):
+def get_signature_and_hints(func) -> tuple[dict, Signature]:
     """
     Get type annotations and signature of a func.
 
@@ -18,7 +18,7 @@ def get_signature_and_hints(func):
     return hints, sig
 
 
-def check_type(value, expected_type):
+def check_type(value: Any, expected_type: Type) -> bool:
     """
     Check if value matches expected type.
 
@@ -34,36 +34,27 @@ def check_type(value, expected_type):
     if origin_type is None:
         return isinstance(value, expected_type)
 
-    elif origin_type is Union:
-        union_types = get_args(expected_type)
-        return any(check_type(value, typ) for typ in union_types)
+    type_checkers = {
+        list: lambda val, typ: isinstance(val, list) and all(check_type(v, typ[0]) for v in val),
+        dict: lambda val, typ: isinstance(val, dict) and all(
+            check_type(k, typ[0]) for k in val) and all(
+            check_type(v, typ[1]) for v in val.values()),
+        tuple: lambda val, typ: isinstance(val, tuple) and len(val) == len(typ) and all(
+            check_type(v, t) for v, t in zip(val, typ)),
+        set: lambda val, typ: isinstance(val, set) and all(check_type(v, typ[0]) for v in val),
+        frozenset: lambda val, typ: isinstance(val, frozenset) and all(
+            check_type(v, typ[0]) for v in val),
+        Union: lambda val, typ: any(check_type(val, t) for t in typ),
+    }
 
-    elif origin_type is list:
-        item_type = get_args(expected_type)[0]
-        return isinstance(value, list) and all(check_type(item, item_type) for item in value)
-
-    elif origin_type is dict:
-        key_type, val_type = get_args(expected_type)
-        return isinstance(value, dict) and all(check_type(k, key_type) for k in value) and all(
-            check_type(v, val_type) for v in value.values())
-
-    elif origin_type is tuple:
-        item_types = get_args(expected_type)
-        return isinstance(value, tuple) and len(value) == len(item_types) and all(
-            check_type(item, item_type) for item, item_type in zip(value, item_types))
-
-    elif origin_type is set:
-        item_type = get_args(expected_type)[0]
-        return isinstance(value, set) and all(check_type(item, item_type) for item in value)
-
-    elif origin_type is frozenset:
-        item_type = get_args(expected_type)[0]
-        return isinstance(value, frozenset) and all(check_type(item, item_type) for item in value)
+    if origin_type in type_checkers:
+        args = get_args(expected_type)
+        return type_checkers[origin_type](value, args)
 
     return True  # return True for unsupported types
 
 
-def check_args_types(func, hints, sig, args, kwargs):
+def check_args_types(func, hints: dict, sig: Signature, args: tuple, kwargs: dict):
     """
     Check types of function arguments.
 
@@ -87,7 +78,7 @@ def check_args_types(func, hints, sig, args, kwargs):
                             f"but got {type(param_value).__name__}")
 
 
-def check_return_types(result, return_type):
+def check_return_types(result: Any, return_type: Type):
     """
     Check return type of result.
 
