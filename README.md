@@ -55,13 +55,13 @@ pip install typeca
 
 ## Usage
 
-Use **@type_enforcer** to enforce type checks on your functions:
+Use **@TypeEnforcer** to enforce type checks on your functions:
 
 ```python
-from typeca import type_enforcer
+from typeca import TypeEnforcer
 
 
-@type_enforcer()
+@TypeEnforcer()
 def two_num_product(a: int, b: int) -> int:
     return a * b
 
@@ -76,7 +76,7 @@ two_num_product(2, '3')  # Raises TypeError
 ### Example 1: Simple Type Enforcement
 
 ```python
-@type_enforcer()
+@TypeEnforcer()
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -91,7 +91,7 @@ add(3, '4')  # Raises TypeError
 Supports lists, dictionaries, and tuples with type annotations:
 
 ```python
-@type_enforcer()
+@TypeEnforcer()
 def process_items(items: list[int]) -> list[int]:
     return [item * 2 for item in items]
 
@@ -106,7 +106,7 @@ process_items(['a', 'b', 'c'])  # Raises TypeError
 At any moment you can disable check to improve performance of the function:
 
 ```python
-@type_enforcer(enable=False)
+@TypeEnforcer(enable=False)
 def process_array(*args) -> list[int]:
     return list(args) * 2
 
@@ -116,10 +116,10 @@ process_array(1, 2, 3)  # Works without type enforcement
 
 ### Example 4: Custom Cache Size
 
-The type_enforcer decorator will cache up to 128 unique signatures for process_data:
+The TypeEnforcer decorator will cache up to 128 unique signatures for process_data:
 
 ```python
-@type_enforcer(maxsize=128)
+@TypeEnforcer(maxsize=128)
 def process_data(x: int, y: int) -> int:
     return x + y
 
@@ -132,7 +132,7 @@ process_data("5", "10")  # Raises TypeError
 ### Example 5: Using frozenset
 
 ```python
-@type_enforcer()
+@TypeEnforcer()
 def unique_numbers(data: frozenset[int]) -> frozenset[int]:
     return frozenset([n * 2 for n in data])
 
@@ -145,7 +145,7 @@ unique_numbers(frozenset({1, 2, "3"}))  # Raises TypeError
 ### Example 6: Using Union with | syntax
 
 ```python
-@type_enforcer()
+@TypeEnforcer()
 def process_value(value: int | str) -> str:
     return f"Processed: {value}"
 
