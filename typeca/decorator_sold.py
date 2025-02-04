@@ -92,6 +92,8 @@ class UnionChecker(TypeChecker):
         self.factory = factory
 
     def check_type(self, value: Any, expected_type: Type) -> bool:
+        if value is None and type(None) in get_args(expected_type):
+            return True
         return any(
             self.factory.get_checker(t).check_type(value, t) for t in get_args(expected_type))
 
