@@ -1,132 +1,281 @@
+from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
 from inspect import Signature, signature
 from typing import Any, Type, Union, get_args, get_origin
 
 
-def get_signature_and_hints(func) -> tuple[dict, Signature]:
-    """
-    Get type annotations and signature of a func.
-
-    Args:
-        func (Callable): func to be decorated.
-
-    Returns:
-        tuple[dict, Signature]: A tuple containing dict of type annotations and signature of a func.
-    """
-    hints = func.__annotations__
-    sig = signature(func)
-    return hints, sig
+class TypeChecker(ABC):
+    @abstractmethod
+    def check_type(self, value: Any, expected_type: Type) -> bool:
+        pass
 
 
-def check_type(value: Any, expected_type: Type) -> bool:
-    """
-    Check if value matches expected type.
-
-    Args:
-        value (Any): value to be checked.
-        expected_type (Type): expected type.
-
-    Returns:
-        bool: True if value matches expected type.
-    """
-    origin_type = get_origin(expected_type)
-
-    if origin_type is None:
-        return isinstance(value, expected_type)
-
-    type_checkers = {
-        list: lambda val, typ: isinstance(val, list) and all(check_type(v, typ[0]) for v in val),
-        dict: lambda val, typ: isinstance(val, dict) and all(
-            check_type(k, typ[0]) for k in val) and all(
-            check_type(v, typ[1]) for v in val.values()),
-        tuple: lambda val, typ: isinstance(val, tuple) and len(val) == len(typ) and all(
-            check_type(v, t) for v, t in zip(val, typ)),
-        set: lambda val, typ: isinstance(val, set) and all(check_type(v, typ[0]) for v in val),
-        frozenset: lambda val, typ: isinstance(val, frozenset) and all(
-            check_type(v, typ[0]) for v in val),
-        Union: lambda val, typ: any(check_type(val, t) for t in typ),
-    }
-
-    if origin_type in type_checkers:
-        args = get_args(expected_type)
-        return type_checkers[origin_type](value, args)
-
-    return True  # return True for unsupported types
+class TypeCheckerFactory(ABC):
+    @abstractmethod
+    def get_checker(self, expected_type: Type) -> TypeChecker:
+        pass
 
 
-def check_args_types(func, hints: dict, sig: Signature, args: tuple, kwargs: dict):
-    """
-    Check types of function arguments.
+class SignatureHelperFactory(ABC):
+    @abstractmethod
+    def get_signature_and_hints(self, func) -> tuple[dict, Signature]:
+        pass
 
-    Args:
-        func (Callable): function to be decorated.
-        hints (dict): dict of type annotations.
-        sig (Signature): signature of the function.
-        args (tuple): args of function.
-        kwargs (dict): kwargs of function.
+    @abstractmethod
+    def check_args_types(self, func, hints: dict[str, Type], sig: Signature, args: tuple,
+                         kwargs: dict):
+        pass
 
-    Raises:
-        TypeError: if args and kwargs have different types.
-    """
-    bound_args = sig.bind(*args, **kwargs)
-    bound_args.apply_defaults()
-
-    for param_name, param_value in bound_args.arguments.items():
-        expected_type = hints.get(param_name)
-        if expected_type and not check_type(param_value, expected_type):
-            raise TypeError(f"Argument '{param_name}' must be of type {expected_type}, "
-                            f"but got {type(param_value).__name__}")
+    @abstractmethod
+    def check_return_type(self, result: Any, return_type: Type):
+        pass
 
 
-def check_return_types(result: Any, return_type: Type):
-    """
-    Check return type of result.
+class SignatureInfoInterface(ABC):
+    @abstractmethod
+    def _get_signature(self, func) -> Signature:
+        pass
 
-    Args:
-        result (Any): result of function.
-        return_type (Type): expected type.
+    @abstractmethod
+    def _get_hints(self, func) -> dict[str, Type]:
+        pass
 
-    Raises:
-        TypeError: if result is not of expected type.
-    """
-    if return_type and not check_type(result, return_type):
-        raise TypeError(f'Return value must be of type {return_type}, '
-                        f'but got {type(result).__name__}')
+    @abstractmethod
+    def get_signature_and_hints(self, func) -> tuple[dict, Signature]:
+        pass
 
 
-def type_enforcer(maxsize: int = 64, enable: bool = True):
-    """
-    Decorator to enforce type checking on function arguments and return types.
+class ArgsTypeCheckerInterface(ABC):
+    @abstractmethod
+    def check_args_types(self, func, hints: dict[str, Type], sig: Signature, args: tuple,
+                         kwargs: dict):
+        pass
 
-    Args:
-        maxsize (int): maximum size of the cache for storing function signatures.
-        enable (bool): enable type checking.
 
-    Returns:
-        Callable: decorated function.
+class ReturnTypeCheckerInterface(ABC):
+    @abstractmethod
+    def check_return_type(self, result: Any, return_type: Type):
+        pass
 
-    Notes:
-        Maxsize defaults to 64.
-        Enable defaults to True.
-        If enable is False, the decorator returns the original function unchanged.
-    """
-    get_cached_signature_and_hints = lru_cache(maxsize=maxsize)(get_signature_and_hints)
 
-    def decorator(func):
-        if not enable:
+class StandardTypeChecker(TypeChecker):
+    def check_type(self, value: Any, expected_type: Type) -> bool:
+        origin_type = get_origin(expected_type)
+        if origin_type is None:
+            return isinstance(value, expected_type)
+        return True
+
+
+class BaseArrayChecker(TypeChecker):
+    def __init__(self, factory: TypeCheckerFactory, expected_cls: Type):
+        self.factory = factory
+        self.expected_cls = expected_cls
+
+    def check_type(self, value: Any, expected_type: Type) -> bool:
+        elem_type = get_args(expected_type)[0]
+        checker = self.factory.get_checker(elem_type)
+        return all(checker.check_type(v, elem_type) for v in value)
+
+
+class ListChecker(BaseArrayChecker):
+    def __init__(self, factory: TypeCheckerFactory):
+        super().__init__(factory, list)
+
+
+class SetChecker(BaseArrayChecker):
+    def __init__(self, factory: TypeCheckerFactory):
+        super().__init__(factory, set)
+
+
+class FrozenSetChecker(BaseArrayChecker):
+    def __init__(self, factory: TypeCheckerFactory):
+        super().__init__(factory, frozenset)
+
+
+class DictChecker(TypeChecker):
+    def __init__(self, factory: TypeCheckerFactory):
+        self.factory = factory
+
+    def check_type(self, value: Any, expected_type: Type) -> bool:
+        key_type, value_type = get_args(expected_type)
+        key_checker = self.factory.get_checker(key_type)
+        value_checker = self.factory.get_checker(value_type)
+        return all(key_checker.check_type(key, key_type) for key in value) and \
+            all(value_checker.check_type(v, value_type) for v in value.values())
+
+
+class TupleChecker(TypeChecker):
+    def __init__(self, factory: TypeCheckerFactory):
+        self.factory = factory
+
+    def check_type(self, value: Any, expected_type: Type) -> bool:
+        expected_types = get_args(expected_type)
+        return isinstance(value, tuple) and len(expected_types) == len(value) and \
+            all(self.factory.get_checker(t).check_type(v, t) for v, t in zip(value, expected_types))
+
+
+class UnionChecker(TypeChecker):
+    def __init__(self, factory: TypeCheckerFactory):
+        self.factory = factory
+
+    def check_type(self, value: Any, expected_type: Type) -> bool:
+        if value is None and type(None) in get_args(expected_type):
+            return True
+        return any(
+            self.factory.get_checker(t).check_type(value, t) for t in get_args(expected_type))
+
+
+class DefaultTypeCheckerFactory(TypeCheckerFactory):
+    def __init__(self):
+        self.checkers = {}
+        self._register_builtin_checkers()
+
+    def _register_builtin_checkers(self):
+        self.register_checker(list, ListChecker(self))
+        self.register_checker(dict, DictChecker(self))
+        self.register_checker(tuple, TupleChecker(self))
+        self.register_checker(set, SetChecker(self))
+        self.register_checker(frozenset, FrozenSetChecker(self))
+        self.register_checker(Union, UnionChecker(self))
+
+    def register_checker(self, type_key: Type, checker: TypeChecker):
+        self.checkers[type_key] = checker
+
+    def get_checker(self, expected_type: Type) -> TypeChecker:
+        origin_type = get_origin(expected_type)
+
+        if origin_type in self.checkers:
+            return self.checkers[origin_type]
+
+        return StandardTypeChecker()
+
+
+class SignatureInfo(SignatureInfoInterface):
+    def _get_signature(self, func) -> Signature:
+        return signature(func)
+
+    def _get_hints(self, func) -> dict[str, Type]:
+        return func.__annotations__
+
+    def get_signature_and_hints(self, func) -> tuple[dict, Signature]:
+        hints = self._get_hints(func)
+        sig = self._get_signature(func)
+        return hints, sig
+
+
+class ArgsTypeChecker(ArgsTypeCheckerInterface):
+    def __init__(self, factory: TypeCheckerFactory):
+        self.factory = factory
+
+    def check_args_types(self, func, hints: dict[str, Type], sig: Signature, args: tuple,
+                         kwargs: dict):
+        bound_args = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        for param_name, param_value in bound_args.arguments.items():
+            expected_type = hints.get(param_name)
+            if expected_type and not self.factory.get_checker(expected_type).check_type(
+                    param_value, expected_type):
+                raise TypeError(f"Argument '{param_name}' must be of type {expected_type}, "
+                                f"but got {type(param_value).__name__}")
+
+
+class ReturnTypeChecker(ReturnTypeCheckerInterface):
+    def __init__(self, factory: TypeCheckerFactory):
+        self.factory = factory
+
+    def check_return_type(self, result: Any, return_type: Type) -> bool:
+        if return_type and not self.factory.get_checker(return_type).check_type(result,
+                                                                                return_type):
+            raise TypeError(f'Return value must be of type {return_type}, '
+                            f'but got {type(result).__name__}')
+
+
+class SignatureExtractor:
+    def __init__(self, signature_info: SignatureInfoInterface):
+        self.signature_info = signature_info
+
+    def extract(self, func) -> tuple[dict, Signature]:
+        return self.signature_info.get_signature_and_hints(func)
+
+
+class TypeValidator:
+    def __init__(self,
+                 arg_checker: ArgsTypeCheckerInterface,
+                 return_checker: ReturnTypeCheckerInterface):
+        self.arg_checker = arg_checker
+        self.return_checker = return_checker
+
+    def validate_args(self, func, hints: dict[str, Type], sig: Signature, args: tuple,
+                      kwargs: dict):
+        self.arg_checker.check_args_types(func, hints, sig, args, kwargs)
+
+    def validate_return(self, result: Any, return_type: Type):
+        self.return_checker.check_return_type(result, return_type)
+
+
+class SignatureHelper:
+    def __init__(self,
+                 signature_extractor: SignatureExtractor,
+                 type_validator: TypeValidator):
+        self.signature_extractor = signature_extractor
+        self.type_validator = type_validator
+
+    def get_signature_and_hints(self, func) -> tuple[dict, Signature]:
+        return self.signature_extractor.extract(func)
+
+    def check_args_types(self, func, hints: dict[str, Type], sig: Signature, args: tuple,
+                         kwargs: dict):
+        self.type_validator.validate_args(func, hints, sig, args, kwargs)
+
+    def check_return_type(self, result: Any, return_type: Type):
+        self.type_validator.validate_return(result, return_type)
+
+
+class SignatureCacheManager:
+    def __init__(self, signature_helper: SignatureHelperFactory, maxsize: int = 64):
+        self.get_cached_signature_and_hints = lru_cache(maxsize=maxsize)(
+            signature_helper.get_signature_and_hints
+        )
+
+
+class TypeEnforcer:
+    _instance = None
+
+    def __new__(cls, maxsize: int = 64, enable: bool = True):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._init(maxsize, enable)
+        return cls._instance
+
+    def _init(self, maxsize: int = 64, enable: bool = True):
+        self.maxsize = maxsize
+        self.enable = enable
+
+        factory = DefaultTypeCheckerFactory()
+        signature_info = SignatureInfo()
+        arg_checker = ArgsTypeChecker(factory)
+        return_checker = ReturnTypeChecker(factory)
+
+        signature_extractor = SignatureExtractor(signature_info)
+        type_validator = TypeValidator(arg_checker, return_checker)
+
+        signature_helper = SignatureHelper(signature_extractor, type_validator)
+        self.signature_cache = SignatureCacheManager(signature_helper, maxsize)
+        self.signature_helper = signature_helper
+
+    def __call__(self, func):
+        if not self.enable:
             return func
 
-        hints, sig = get_cached_signature_and_hints(func)
+        hints, sig = self.signature_cache.get_cached_signature_and_hints(func)
         return_type = hints.get('return')
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            check_args_types(func, hints, sig, args, kwargs)
+            self.signature_helper.check_args_types(func, hints, sig, args, kwargs)
             result = func(*args, **kwargs)
-            check_return_types(result, return_type)
-
+            self.signature_helper.check_return_type(result, return_type)
             return result
 
         return wrapper
-
-    return decorator
