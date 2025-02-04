@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "typeca"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
     { name = "Georgii Viktorov", email = "nowayisleft@gmail.com" },
 ]
 description = "A type-checking utility for Python functions"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
