@@ -3,6 +3,8 @@ from functools import lru_cache, wraps
 from inspect import Signature, signature
 from typing import Any, Type, Union, get_args, get_origin
 
+from .exceptions import ArgumentTypeError, ReturnTypeError
+
 
 class TypeChecker(ABC):
     @abstractmethod
@@ -176,8 +178,7 @@ class ArgsTypeChecker(ArgsTypeCheckerInterface):
             expected_type = hints.get(param_name)
             if expected_type and not self.factory.get_checker(expected_type).check_type(
                     param_value, expected_type):
-                raise TypeError(f"Argument '{param_name}' must be of type {expected_type}, "
-                                f"but got {type(param_value).__name__}")
+                raise ArgumentTypeError(param_name, expected_type, param_value)
 
 
 class ReturnTypeChecker(ReturnTypeCheckerInterface):
@@ -187,8 +188,7 @@ class ReturnTypeChecker(ReturnTypeCheckerInterface):
     def check_return_type(self, result: Any, return_type: Type) -> bool:
         if return_type and not self.factory.get_checker(return_type).check_type(result,
                                                                                 return_type):
-            raise TypeError(f'Return value must be of type {return_type}, '
-                            f'but got {type(result).__name__}')
+            raise ReturnTypeError(return_type, type(result))
 
 
 class SignatureExtractor:
@@ -233,7 +233,7 @@ class SignatureHelper:
 
 
 class SignatureCacheManager:
-    def __init__(self, signature_helper: SignatureHelperFactory, maxsize: int = 64):
+    def __init__(self, signature_helper: SignatureHelperFactory, maxsize: int):
         self.get_cached_signature_and_hints = lru_cache(maxsize=maxsize)(
             signature_helper.get_signature_and_hints
         )
