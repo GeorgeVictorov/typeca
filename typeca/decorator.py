@@ -248,9 +248,9 @@ class TypeEnforcer:
             cls._instance._init(maxsize, enable)
         return cls._instance
 
-    def _init(self, maxsize: int = 64, enable: bool = True):
-        self.maxsize = maxsize
-        self.enable = enable
+    def _init(self, maxsize: int, enable: bool):
+        self.default_cache_maxsize = maxsize
+        self.default_enable = enable
 
         factory = DefaultTypeCheckerFactory()
         signature_info = SignatureInfo()
@@ -264,11 +264,26 @@ class TypeEnforcer:
         self.signature_cache = SignatureCacheManager(signature_helper, maxsize)
         self.signature_helper = signature_helper
 
-    def __call__(self, func):
-        if not self.enable:
+    def __call__(self, func=None, *, maxsize=None, enable=None):
+        if func is None:
+
+            def wrapper(f):
+                return self._decorate(f, maxsize, enable)
+
+            return wrapper
+        else:
+            return self._decorate(func, maxsize, enable)
+
+    def _decorate(self, func, maxsize, enable):
+        final_cache_maxsize = maxsize if maxsize is not None else self.default_cache_maxsize
+        final_enable = enable if enable is not None else self.default_enable
+
+        if not final_enable:
             return func
 
-        hints, sig = self.signature_cache.get_cached_signature_and_hints(func)
+        signature_cache = SignatureCacheManager(self.signature_helper, final_cache_maxsize)
+
+        hints, sig = signature_cache.get_cached_signature_and_hints(func)
         return_type = hints.get('return')
 
         @wraps(func)
