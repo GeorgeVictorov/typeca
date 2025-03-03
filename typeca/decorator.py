@@ -140,7 +140,7 @@ class DefaultTypeCheckerFactory(TypeCheckerFactory):
         self.register_checker(frozenset, FrozenSetChecker(self))
         self.register_checker(Union, UnionChecker(self))
 
-    def register_checker(self, type_key: Type, checker: TypeChecker):
+    def register_checker(self, type_key: Type | Any, checker: TypeChecker):
         self.checkers[type_key] = checker
 
     def get_checker(self, expected_type: Type) -> TypeChecker:
@@ -185,7 +185,7 @@ class ReturnTypeChecker(ReturnTypeCheckerInterface):
     def __init__(self, factory: TypeCheckerFactory):
         self.factory = factory
 
-    def check_return_type(self, result: Any, return_type: Type) -> bool:
+    def check_return_type(self, result: Any, return_type: Type):
         if return_type and not self.factory.get_checker(return_type).check_type(result,
                                                                                 return_type):
             raise ReturnTypeError(return_type, type(result))
@@ -233,7 +233,7 @@ class SignatureHelper:
 
 
 class SignatureCacheManager:
-    def __init__(self, signature_helper: SignatureHelperFactory, maxsize: int):
+    def __init__(self, signature_helper: SignatureHelper, maxsize: int):
         self.get_cached_signature_and_hints = lru_cache(maxsize=maxsize)(
             signature_helper.get_signature_and_hints
         )
@@ -247,6 +247,9 @@ class TypeEnforcer:
             cls._instance = super().__new__(cls)
             cls._instance._init(maxsize, enable)
         return cls._instance
+
+    def __del__(self):
+        TypeEnforcer._instance = None
 
     def _init(self, maxsize: int, enable: bool):
         self.default_cache_maxsize = maxsize
